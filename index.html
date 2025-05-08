@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bible Quiz Demo App</title>
+    <style>
+        /* Basic Styling for the Quiz */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* Align top */
+            min-height: 100vh;
+            background-color: #f0f4f8;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        #quiz-container {
+            background-color: #ffffff;
+            padding: 25px 30px;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+            width: 100%;
+            max-width: 700px; /* Slightly wider */
+            box-sizing: border-box;
+            margin-top: 20px;
+            text-align: center; /* Center align content like logo */
+        }
+
+        /* Logo Styling */
+        #logo {
+            max-width: 100px; /* Adjust size as needed */
+            height: auto;
+            margin-bottom: 15px; /* Space below logo */
+        }
+
+
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.8em;
+            font-weight: 600;
+        }
+
+        #quiz-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #e0e0e0;
+            flex-wrap: wrap; /* Wrap on small screens */
+            gap: 10px; /* Add gap for wrapped items */
+            text-align: left; /* Reset text align for header content */
+        }
+
+        #progress-text {
+            font-size: 0.95em;
+            color: #555;
+            font-weight: 500;
+        }
+        /* Style for live counts */
+        #live-counts {
+             font-size: 0.9em;
+             font-weight: 500;
+        }
+        #live-correct-count { color: #198754; margin-right: 8px;}
+        #live-incorrect-count { color: #dc3545; }
+
+
+        #overall-timer {
+            font-size: 1.1em;
+            color: #e74c3c;
+            font-weight: bold;
+            background-color: #fbeaea;
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
+
+        #question-area {
+            margin-bottom: 20px;
+            text-align: left; /* Reset text align */
+        }
+
+        #question-text {
+            font-size: 1.25em;
+            color: #34495e;
+            margin-bottom: 20px;
+            line-height: 1.5;
+            font-weight: 500;
+        }
+
+        #options-area {
+            display: flex;
+            flex-direction: column;
+            gap: 12px; /* Space between options */
+            text-align: left; /* Reset text align */
+        }
+
+        /* MCQ Option Styling */
+        .mcq-option {
+            display: block;
+            width: 100%;
+            padding: 14px 18px;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: left;
+            font-size: 1em;
+            transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.1s ease;
+            box-sizing: border-box;
+            color: #333;
+        }
+
+        .mcq-option:hover:not(:disabled) {
+            background-color: #e9ecef;
+            border-color: #adb5bd;
+            transform: translateY(-1px);
+        }
+
+        .mcq-option:disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .mcq-option.selected {
+            background-color: #cfe2ff;
+            border-color: #9ec5fe;
+            font-weight: 600;
+            color: #0a58ca;
+        }
+         .mcq-option.correct-answer { /* Style for showing correct answer *after* quiz */
+             background-color: #d1e7dd;
+             border-color: #a3cfbb;
+             color: #0f5132;
+         }
+        .mcq-option.incorrect-selection { /* Style for showing incorrect selection *after* quiz */
+             background-color: #f8d7da;
+             border-color: #f1aeb5;
+             color: #842029;
+         }
+
+
+        /* Matching Question Styling */
+        .matching-container {
+            display: grid;
+            grid-template-columns: auto 1fr; /* Label, Dropdown */
+            gap: 15px 15px; /* Row gap, Column gap */
+            align-items: center; /* Vertically align items */
+            border: 1px solid #eee;
+            padding: 15px;
+            border-radius: 8px;
+            background-color: #fafafa;
+            text-align: left; /* Reset text align */
+        }
+
+        .match-item-left {
+            padding: 10px;
+            background-color: #e9ecef;
+            border-radius: 6px;
+            text-align: right;
+            font-weight: 500;
+            color: #495057;
+        }
+
+        .match-select {
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            width: 100%;
+            box-sizing: border-box;
+            background-color: #fff;
+            font-size: 0.95em;
+        }
+        .match-select:disabled {
+             background-color: #e9ecef;
+             cursor: not-allowed;
+        }
+
+
+        /* Rating Question Styling */
+        .rating-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px; /* Increased gap */
+            flex-wrap: wrap;
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .rating-container label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            padding: 8px 10px;
+            min-width: 45px;
+            border-radius: 6px;
+            transition: background-color 0.2s ease;
+        }
+        .rating-container label:hover {
+            background-color: #e9ecef;
+        }
+
+         .rating-container input[type="radio"] {
+             margin-top: 8px;
+             cursor: pointer;
+             transform: scale(1.2); /* Slightly larger radio */
+         }
+        .rating-container input[type="radio"]:disabled {
+             cursor: not-allowed;
+         }
+         .rating-container span {
+             font-weight: 500;
+             color: #495057;
+         }
+
+        /* Feedback Styling */
+        #feedback-area {
+            margin-top: 20px;
+            font-weight: 600;
+            font-size: 1.1em;
+            min-height: 1.5em; /* Prevent layout shift */
+            text-align: center;
+            padding: 10px;
+            border-radius: 6px;
+        }
+        .feedback-correct { background-color: #d1e7dd; color: #0f5132; }
+        .feedback-incorrect { background-color: #f8d7da; color: #842029; }
+        .feedback-submitted { background-color: #cfe2ff; color: #0a58ca; }
+
+
+        /* Navigation/Result Styling */
+        #navigation {
+            margin-top: 25px;
+            text-align: center;
+        }
+
+        #submit-btn { /* Only submit button now */
+            padding: 12px 30px;
+            font-size: 1.05em;
+            background-color: #198754; /* Green */
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            font-weight: 500;
+        }
+        #submit-btn:disabled {
+            background-color: #adb5bd;
+            cursor: not-allowed;
+        }
+
+        #submit-btn:hover:not(:disabled) {
+            background-color: #157347;
+        }
+
+        #result-area {
+            text-align: center;
+            padding: 30px;
+            border: 1px solid #bcd0f7;
+            border-radius: 12px;
+            background-color: #e7f0fe;
+            margin-top: 30px;
+        }
+
+        #result-area h2 {
+            margin-bottom: 20px;
+            color: #0a58ca;
+            font-size: 1.6em;
+        }
+
+        #result-area p {
+            font-size: 1.25em;
+            color: #333;
+            margin-bottom: 10px; /* Adjusted margin */
+        }
+        #result-summary { /* New container for counts */
+             margin-bottom: 25px;
+        }
+         #result-summary span {
+             display: inline-block; /* Layout side-by-side */
+             margin: 0 15px; /* Spacing between counts */
+             font-weight: 500;
+         }
+         .correct-count { color: #198754; }
+         .incorrect-count { color: #dc3545; }
+
+        #restart-btn {
+             padding: 12px 30px;
+            font-size: 1.05em;
+            background-color: #0d6efd;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            font-weight: 500;
+            margin-top: 20px; /* Add space above restart */
+        }
+         #restart-btn:hover {
+             background-color: #0b5ed7;
+         }
+
+        /* Collapsible Review Section Styling */
+        #review-section {
+            margin-top: 30px;
+            border-top: 1px solid #ccc;
+            padding-top: 20px;
+            text-align: center; /* Center the button */
+        }
+        #review-toggle-btn {
+            background-color: #6c757d;
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.95em;
+            margin-bottom: 15px;
+        }
+        #review-toggle-btn:hover {
+            background-color: #5a6268;
+        }
+        #review-content {
+            display: none; /* Hidden by default */
+            text-align: left;
+            max-height: 300px; /* Limit height and make scrollable */
+            overflow-y: auto; /* Add scrollbar if needed */
+            padding: 15px;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+        }
+        .review-item {
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px dashed #ccc;
+        }
+         .review-item:last-child {
+             border-bottom: none;
+             margin-bottom: 0;
+             padding-bottom: 0;
+         }
+        .review-item p {
+            margin: 5px 0;
+            font-size: 1em; /* Adjust font size for review */
+            color: #495057;
+        }
+        .review-item strong {
+             color: #212529;
+        }
+         .review-correct-answer {
+             color: #198754; /* Green for correct answer */
+             font-weight: bold;
+         }
+         .review-user-answer {
+             color: #dc3545; /* Red for user's incorrect answer */
+         }
+
+        /* Hide elements initially */
+        #result-area, #submit-btn {
+            display: none;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="quiz-container">
+        <img id="logo"
+             src="./gethsemane_logo.png"
+             alt="Church Logo"
+             onerror="this.src='https://placehold.co/100x100/cccccc/ffffff?text=Logo+Error'; this.onerror=null;"
+             >
+        <h1>Bible Quiz Demo</h1>
+
+        <div id="quiz-header">
+            <span id="progress-text">Question 1 / 10</span>
+            <div id="live-counts">
+                <span id="live-correct-count">Correct: 0</span>
+                <span id="live-incorrect-count">Incorrect: 0</span>
+            </div>
+            <span id="overall-timer">Time Left: 10:00</span>
+        </div>
+
+        <div id="question-area">
+            <p id="question-text">Loading question...</p>
+        </div>
+
+        <div id="options-area">
+            </div>
+
+        <div id="feedback-area">
+            </div>
+
+        <div id="navigation">
+            <button id="submit-btn">Submit Answer</button>
+        </div>
+
+        <div id="result-area">
+            <h2>Quiz Demo Complete!</h2>
+            <p>Your final score is: <span id="final-score">0</span> / <span id="total-possible-score">0</span></p>
+            <div id="result-summary">
+                <span class="correct-count">Correct: <span id="correct-answers-count">0</span></span>
+                <span class="incorrect-count">Incorrect: <span id="incorrect-answers-count">0</span></span>
+            </div>
+
+            <div id="review-section">
+                <button id="review-toggle-btn">Review Incorrect Answers</button>
+                <div id="review-content">
+                    </div>
+            </div>
+
+             <button id="restart-btn">Restart Demo</button>
+        </div>
+    </div>
+
+    <script>
+        // --- Bible Quiz Data (Last 10 Questions Only) ---
+        const quizData = [
+             { id: 91, question: "Paul requests prayer so that he may declare the mystery of the ______ fearlessly.", type: "MCQ", options: ["Truth", "faith", "Christ", "gospel"], answer: "gospel", points: 1 },
+             { id: 92, question: "If we don’t grow up into Christ, we remain like ______?", type: "MCQ", options: ["infants", "dead", "not human", "none"], answer: "infants", points: 1 }, // Based on Eph 4:14
+             { id: 93, question: "Who famously said 'Growth is the only evidence of life'?", type: "MCQ", options: ["McDonald", "John Henry Newman", "George MacDonald", "C. S. Lewis"], answer: "John Henry Newman", points: 1 }, // External knowledge
+             { id: 94, question: "God wants us not to ______ unity but to ______ the unity of the Spirit.", type: "MCQ", options: ["create, keep", "break, build", "hold, leave", "seek, find"], answer: "create, keep", points: 1 }, // Interpretation of Eph 4:3
+             { id: 95, question: "Being a saint refers to both a______ (in Christ) and a_______ (in living).", type: "MCQ", options: ["position, progress", "need, seeking", "gift, law", "none"], answer: "position, progress", points: 1 }, // Theological concept
+             { id: 96, question: "Paul calls the people to:", type: "MCQ", options: ["Walk in love", "Walk as children of light", "Walk carefully (as wise)", "all the above"], answer: "all the above", points: 1 }, // Eph 5:2, 5:8, 5:15
+             { id: 97, question: "What is a key aspect of spiritual warfare according to Ephesians 6?", type: "MCQ", options: ["Exercise", "Understand the battle and the enemy", "Stand firm", "all the above"], answer: "Stand firm", points: 1 }, // Eph 6:11, 13, 14
+             { id: 98, question: "We cannot be _______ in our spirituality, as our Christian pilgrimage involves spiritual warfare.", type: "MCQ", options: ["passive", "active", "holy", "unholy"], answer: "passive", points: 1 }, // Interpretation
+             // Original Q99 was missing, using Q100 as the 9th question in this demo set
+             { id: 100, question: "One of the devil’s tactics might be to make us forget which spiritual reality?", type: "MCQ", options: ["The Spiritual gifts", "We are sinners", "We are seated with Christ in the heavenly realms", "all the above"], answer: "We are seated with Christ in the heavenly realms", points: 1 }, // Interpretation linking Eph 6:11 and Eph 2:6
+             // Added a generic rating question as the 10th for variety
+             {
+                 id: 101, // Assigning a new ID
+                 question: "How helpful was this demo quiz? (1=Not helpful, 5=Very helpful)",
+                 type: "Rating",
+                 min: 1,
+                 max: 5,
+                 points: 0 // Rating questions usually don't have points
+             }
+        ];
+
+
+        // --- DOM Elements ---
+        const questionTextElement = document.getElementById('question-text');
+        const optionsAreaElement = document.getElementById('options-area');
+        const feedbackAreaElement = document.getElementById('feedback-area');
+        const submitButton = document.getElementById('submit-btn');
+        const resultAreaElement = document.getElementById('result-area');
+        const finalScoreElement = document.getElementById('final-score');
+        const totalPossibleScoreElement = document.getElementById('total-possible-score');
+        const quizContainer = document.getElementById('quiz-container');
+        const progressTextElement = document.getElementById('progress-text');
+        const overallTimerElement = document.getElementById('overall-timer');
+        const restartButton = document.getElementById('restart-btn');
+        const correctAnswersCountElement = document.getElementById('correct-answers-count');
+        const incorrectAnswersCountElement = document.getElementById('incorrect-answers-count');
+        const liveCorrectCountElement = document.getElementById('live-correct-count');
+        const liveIncorrectCountElement = document.getElementById('live-incorrect-count');
+        // Elements for review section
+        const reviewSection = document.getElementById('review-section');
+        const reviewToggleButton = document.getElementById('review-toggle-btn');
+        const reviewContent = document.getElementById('review-content');
+
+
+        // --- Quiz State ---
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let correctCount = 0;
+        let incorrectCount = 0;
+        let userAnswers = {}; // Store user answers for Matching type
+        let incorrectlyAnsweredQuestions = []; // Store details of incorrect answers
+        let totalPossibleScore = 0;
+        let overallTimerInterval;
+        let timeLeft = 10 * 60; //timer in seconds
+        let autoProceedTimeout;
+
+        // --- Functions ---
+
+        function startOverallTimer() {
+            clearInterval(overallTimerInterval);
+            timeLeft = 10 * 60; // Reset timer
+            updateTimerDisplay();
+            overallTimerInterval = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+                if (timeLeft <= 0) {
+                    clearInterval(overallTimerInterval);
+                    clearTimeout(autoProceedTimeout);
+                    feedbackAreaElement.textContent = "Time's up!";
+                    feedbackAreaElement.className = 'feedback-incorrect';
+                    showResults();
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            overallTimerElement.textContent = `Time Left: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+        }
+
+        function calculateTotalPossibleScore() {
+            totalPossibleScore = quizData.reduce((sum, question) => sum + (question.points || 0), 0);
+        }
+
+        function updateLiveCounts() {
+            liveCorrectCountElement.textContent = `Correct: ${correctCount}`;
+            liveIncorrectCountElement.textContent = `Incorrect: ${incorrectCount}`;
+        }
+
+        function proceedToNextQuestion() {
+             clearTimeout(autoProceedTimeout);
+             currentQuestionIndex++;
+             loadQuestion();
+        }
+
+        function scheduleAutoProceed() {
+            clearTimeout(autoProceedTimeout);
+            autoProceedTimeout = setTimeout(proceedToNextQuestion, 2000);
+        }
+
+
+        function loadQuestion() {
+            optionsAreaElement.innerHTML = '';
+            feedbackAreaElement.textContent = '';
+            feedbackAreaElement.className = '';
+            userAnswers = {};
+            submitButton.style.display = 'none';
+            submitButton.disabled = false;
+
+            if (currentQuestionIndex >= quizData.length) {
+                showResults();
+                return;
+            }
+
+            progressTextElement.textContent = `Question ${currentQuestionIndex + 1} / ${quizData.length}`;
+            updateLiveCounts();
+
+            const currentQuestion = quizData[currentQuestionIndex];
+            questionTextElement.textContent = currentQuestion.question;
+
+            switch (currentQuestion.type) {
+                case "MCQ":
+                    loadMCQOptions(currentQuestion);
+                    break;
+                case "Matching":
+                    loadMatchingOptions(currentQuestion);
+                    submitButton.style.display = 'inline-block';
+                    break;
+                case "Rating":
+                    loadRatingOptions(currentQuestion);
+                    break;
+                default:
+                    optionsAreaElement.innerHTML = '<p>Unsupported question type.</p>';
+                    scheduleAutoProceed();
+            }
+        }
+
+        function loadMCQOptions(question) {
+             const shuffledOptions = [...question.options].sort(() => Math.random() - 0.5);
+             shuffledOptions.forEach(option => {
+                const button = document.createElement('button');
+                button.textContent = option;
+                button.classList.add('mcq-option');
+                button.onclick = () => handleMCQAnswer(option, question, button);
+                optionsAreaElement.appendChild(button);
+            });
+        }
+
+        function handleMCQAnswer(selectedOption, question, buttonElement) {
+            document.querySelectorAll('.mcq-option').forEach(btn => {
+                btn.disabled = true;
+            });
+            buttonElement.classList.add('selected');
+
+            if (selectedOption === question.answer) {
+                score += question.points;
+                correctCount++;
+                feedbackAreaElement.textContent = "Correct!";
+                feedbackAreaElement.className = 'feedback-correct';
+            } else {
+                incorrectCount++;
+                feedbackAreaElement.textContent = `Incorrect!`;
+                feedbackAreaElement.className = 'feedback-incorrect';
+                incorrectlyAnsweredQuestions.push({
+                    questionText: question.question,
+                    userAnswer: selectedOption,
+                    correctAnswer: question.answer
+                });
+            }
+            updateLiveCounts();
+            scheduleAutoProceed();
+        }
+
+        function loadMatchingOptions(question) {
+            const container = document.createElement('div');
+            container.classList.add('matching-container');
+            const leftItems = question.pairs.map(pair => pair[0]);
+            const rightItems = question.pairs.map(pair => pair[1]);
+            const shuffledRightItems = [...rightItems].sort(() => Math.random() - 0.5);
+
+            leftItems.forEach((leftItem) => {
+                const leftElement = document.createElement('div');
+                leftElement.textContent = leftItem;
+                leftElement.classList.add('match-item-left');
+                const selectElement = document.createElement('select');
+                selectElement.classList.add('match-select');
+                selectElement.dataset.leftItem = leftItem;
+                const defaultOption = document.createElement('option');
+                defaultOption.value = "";
+                defaultOption.textContent = "Select match...";
+                selectElement.appendChild(defaultOption);
+                shuffledRightItems.forEach(rightItem => {
+                    const optionElement = document.createElement('option');
+                    optionElement.value = rightItem;
+                    optionElement.textContent = rightItem;
+                    selectElement.appendChild(optionElement);
+                });
+                 selectElement.onchange = (event) => {
+                     userAnswers[leftItem] = event.target.value;
+                 };
+                container.appendChild(leftElement);
+                container.appendChild(selectElement);
+            });
+            optionsAreaElement.appendChild(container);
+        }
+
+         function handleMatchingSubmit() {
+             submitButton.disabled = true;
+             const currentQuestion = quizData[currentQuestionIndex];
+             let correctMatches = 0;
+             let userMatches = {};
+             let correctPairs = {};
+
+             currentQuestion.pairs.forEach(pair => {
+                 const leftItem = pair[0];
+                 const correctAnswer = pair[1];
+                 const userAnswer = userAnswers[leftItem];
+                 userMatches[leftItem] = userAnswer || "Not Answered";
+                 correctPairs[leftItem] = correctAnswer;
+
+                 if (userAnswer && userAnswer === correctAnswer) {
+                     correctMatches++;
+                 }
+             });
+
+             const pointsEarned = correctMatches;
+             score += pointsEarned;
+
+             if (correctMatches === currentQuestion.pairs.length) {
+                 correctCount++;
+                 feedbackAreaElement.textContent = `Answer Submitted! (${correctMatches}/${currentQuestion.pairs.length} correct)`;
+                 feedbackAreaElement.className = 'feedback-correct';
+             } else {
+                 incorrectCount++;
+                 feedbackAreaElement.textContent = `Answer Submitted! (${correctMatches}/${currentQuestion.pairs.length} correct)`;
+                 feedbackAreaElement.className = 'feedback-submitted';
+                 incorrectlyAnsweredQuestions.push({
+                     questionText: currentQuestion.question,
+                     userAnswer: userMatches,
+                     correctAnswer: correctPairs,
+                     isMatching: true
+                 });
+             }
+
+             optionsAreaElement.querySelectorAll('.match-select').forEach(sel => sel.disabled = true);
+             updateLiveCounts();
+             scheduleAutoProceed();
+         }
+
+
+        function loadRatingOptions(question) {
+            const container = document.createElement('div');
+            container.classList.add('rating-container');
+            for (let i = question.min; i <= question.max; i++) {
+                const label = document.createElement('label');
+                const radio = document.createElement('input');
+                radio.type = 'radio';
+                radio.name = `rating-${currentQuestionIndex}`;
+                radio.value = i;
+                radio.onclick = () => handleRatingAnswer(i, question.points);
+                const text = document.createElement('span');
+                text.textContent = i;
+                label.appendChild(text);
+                label.appendChild(radio);
+                container.appendChild(label);
+            }
+            optionsAreaElement.appendChild(container);
+        }
+
+        function handleRatingAnswer(selectedValue, points) {
+             optionsAreaElement.querySelectorAll('input[type="radio"]').forEach(rb => {
+                 rb.disabled = true;
+             });
+            console.log(`User rated: ${selectedValue}`);
+            feedbackAreaElement.textContent = `Rating Submitted: ${selectedValue}`;
+            feedbackAreaElement.className = 'feedback-submitted';
+            updateLiveCounts();
+            scheduleAutoProceed();
+        }
+
+
+        function showResults() {
+            clearInterval(overallTimerInterval);
+            clearTimeout(autoProceedTimeout);
+
+            quizContainer.querySelector('#quiz-header').style.display = 'none';
+            questionTextElement.style.display = 'none';
+            optionsAreaElement.style.display = 'none';
+            feedbackAreaElement.style.display = 'none';
+            submitButton.style.display = 'none';
+
+            finalScoreElement.textContent = score;
+            totalPossibleScoreElement.textContent = totalPossibleScore;
+            correctAnswersCountElement.textContent = correctCount;
+            incorrectAnswersCountElement.textContent = incorrectCount;
+
+            populateReviewSection();
+            if (incorrectlyAnsweredQuestions.length > 0) {
+                reviewSection.style.display = 'block';
+            } else {
+                 reviewSection.style.display = 'none';
+            }
+
+            resultAreaElement.style.display = 'block';
+        }
+
+        function populateReviewSection() {
+            reviewContent.innerHTML = '';
+
+            if (incorrectlyAnsweredQuestions.length === 0) {
+                reviewContent.innerHTML = '<p>No incorrect answers to review!</p>';
+                return;
+            }
+
+            incorrectlyAnsweredQuestions.forEach(item => {
+                const div = document.createElement('div');
+                div.classList.add('review-item');
+
+                const qText = document.createElement('p');
+                qText.innerHTML = `<strong>Q:</strong> ${item.questionText}`;
+                div.appendChild(qText);
+
+                if (item.isMatching) {
+                    const userAnsText = document.createElement('p');
+                    userAnsText.innerHTML = `<strong>Your Matches:</strong>`;
+                    div.appendChild(userAnsText);
+                    const userList = document.createElement('ul');
+                    userList.style.listStyle = 'none';
+                    userList.style.paddingLeft = '15px';
+                     for (const left in item.userAnswer) {
+                         const li = document.createElement('li');
+                         li.innerHTML = `${left} &rarr; <span class="review-user-answer">${item.userAnswer[left]}</span>`;
+                         userList.appendChild(li);
+                     }
+                     div.appendChild(userList);
+
+
+                    const correctAnsText = document.createElement('p');
+                    correctAnsText.innerHTML = `<strong>Correct Matches:</strong>`;
+                     div.appendChild(correctAnsText);
+                     const correctList = document.createElement('ul');
+                     correctList.style.listStyle = 'none';
+                     correctList.style.paddingLeft = '15px';
+                     for (const left in item.correctAnswer) {
+                         const li = document.createElement('li');
+                         li.innerHTML = `${left} &rarr; <span class="review-correct-answer">${item.correctAnswer[left]}</span>`;
+                         correctList.appendChild(li);
+                     }
+                     div.appendChild(correctList);
+
+                } else {
+                    const userAnsText = document.createElement('p');
+                    userAnsText.innerHTML = `<strong>Your Answer:</strong> <span class="review-user-answer">${item.userAnswer}</span>`;
+                    div.appendChild(userAnsText);
+
+                    const correctAnsText = document.createElement('p');
+                    correctAnsText.innerHTML = `<strong>Correct Answer:</strong> <span class="review-correct-answer">${item.correctAnswer}</span>`;
+                    div.appendChild(correctAnsText);
+                }
+
+                reviewContent.appendChild(div);
+            });
+        }
+
+        function toggleReview() {
+            if (reviewContent.style.display === 'none' || reviewContent.style.display === '') {
+                reviewContent.style.display = 'block';
+                reviewToggleButton.textContent = 'Hide Review';
+            } else {
+                reviewContent.style.display = 'none';
+                reviewToggleButton.textContent = 'Review Incorrect Answers';
+            }
+        }
+
+
+        function restartQuiz() {
+             currentQuestionIndex = 0;
+             score = 0;
+             correctCount = 0;
+             incorrectCount = 0;
+             userAnswers = {};
+             incorrectlyAnsweredQuestions = [];
+             clearTimeout(autoProceedTimeout);
+             clearInterval(overallTimerInterval);
+
+             resultAreaElement.style.display = 'none';
+             reviewSection.style.display = 'none';
+             reviewContent.style.display = 'none';
+             reviewToggleButton.textContent = 'Review Incorrect Answers';
+
+             quizContainer.querySelector('#quiz-header').style.display = 'flex';
+             questionTextElement.style.display = 'block';
+             optionsAreaElement.style.display = 'flex';
+             feedbackAreaElement.textContent = '';
+             feedbackAreaElement.className = '';
+             submitButton.style.display = 'none';
+             submitButton.disabled = false;
+             updateLiveCounts();
+
+             calculateTotalPossibleScore();
+             startOverallTimer();
+             loadQuestion();
+        }
+
+        // --- Event Listeners ---
+         submitButton.addEventListener('click', () => {
+            const currentQuestion = quizData[currentQuestionIndex];
+            if (currentQuestion.type === "Matching") {
+                handleMatchingSubmit();
+            }
+         });
+
+        restartButton.addEventListener('click', restartQuiz);
+        reviewToggleButton.addEventListener('click', toggleReview);
+
+
+        // --- Initial Load ---
+        calculateTotalPossibleScore();
+        startOverallTimer();
+        loadQuestion();
+
+    </script>
+
+</body>
+</html>
