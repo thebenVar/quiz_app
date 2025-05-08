@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bible Quiz Demo App</title>
+    <title>Gethsemane Bible Quiz (Demo App)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         /* Basic Styling */
         body {
@@ -259,12 +260,16 @@
         #result-summary span { display: inline-block; margin: 0 15px; font-weight: 500; }
         .correct-count { color: #198754; }
         .incorrect-count { color: #dc3545; }
-        /* Style for Time Taken */
-        #time-taken-summary {
+        /* Style for Time Taken & Rating */
+        #time-taken-summary, #rating-summary {
             font-size: 1.1em;
             color: #555;
-            margin-bottom: 20px;
+            margin-bottom: 8px; /* Spacing for summary items */
         }
+         #rating-summary {
+             margin-bottom: 20px; /* More space after rating */
+         }
+
 
         /* Achievements / Gifts Section */
         #achievements-section {
@@ -305,9 +310,31 @@
             content: '🏆 '; /* Emoji prefix for text achievements */
         }
 
+        /* Result Area Buttons */
+        .result-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px; /* Space between buttons */
+            margin-top: 25px;
+            flex-wrap: wrap; /* Allow wrapping */
+        }
 
-        #restart-btn { padding: 12px 30px; font-size: 1.05em; background-color: #0d6efd; color: white; border: none; border-radius: 6px; cursor: pointer; transition: background-color 0.2s ease; font-weight: 500; margin-top: 20px; }
+        #restart-btn, #share-score-btn { /* Apply common styles */
+             padding: 12px 25px; /* Adjusted padding */
+             font-size: 1.0em; /* Adjusted size */
+             color: white;
+             border: none;
+             border-radius: 6px;
+             cursor: pointer;
+             transition: background-color 0.2s ease;
+             font-weight: 500;
+        }
+        #restart-btn { background-color: #0d6efd; }
+        #share-score-btn { background-color: #198754; } /* Green for share */
+
         #restart-btn:hover { background-color: #0b5ed7; }
+        #share-score-btn:hover { background-color: #157347; }
+
 
         /* Collapsible Review Section */
         #review-section { margin-top: 30px; border-top: 1px solid #ccc; padding-top: 20px; text-align: center; }
@@ -322,8 +349,13 @@
         .review-user-answer { color: #dc3545; }
 
         /* Hide elements initially */
-        #result-area, #submit-btn, #quiz-content { /* Added #quiz-content */
+        #result-area, #submit-btn, #quiz-content {
              display: none;
+        }
+
+        /* Class to temporarily hide elements during screenshot */
+        .hide-for-screenshot {
+            display: none !important;
         }
 
     </style>
@@ -370,31 +402,36 @@
             <div id="navigation">
                 <button id="submit-btn">Submit Answer</button>
             </div>
-        </div> <div id="result-area">
-            <h2>Quiz Demo Complete!</h2>
-            <p>Your final score is: <span id="final-score">0</span> / <span id="total-possible-score">0</span></p>
-            <div id="result-summary">
-                <span class="correct-count">Correct: <span id="correct-answers-count">0</span></span>
-                <span class="incorrect-count">Incorrect: <span id="incorrect-answers-count">0</span></span>
-            </div>
-            <p id="time-taken-summary">Time Taken: <span id="time-taken">--:--</span></p>
+        </div>
 
-            <div id="achievements-section">
-                <h3>Achievements / Gifts Earned:</h3>
-                <ul id="achievements-list">
-                    <li>No gifts earned yet.</li>
-                </ul>
-            </div>
+        <div id="result-area">
+            <div id="score-card">
+                <h2>Quiz (Demo) Complete!</h2>
+                <p>Your final score is: <span id="final-score">0</span> / <span id="total-possible-score">0</span></p>
+                <div id="result-summary">
+                    <span class="correct-count">Correct: <span id="correct-answers-count">0</span></span>
+                    <span class="incorrect-count">Incorrect: <span id="incorrect-answers-count">0</span></span>
+                </div>
+                <p id="time-taken-summary">Time Taken: <span id="time-taken">--:--</span></p>
+                <p id="rating-summary">Your Rating: <span id="final-rating">N/A</span></p>
 
-            <div id="review-section">
+                <div id="achievements-section">
+                    <h3>Achievements / Gifts Earned:</h3>
+                    <ul id="achievements-list">
+                        <li>No gifts earned yet.</li>
+                    </ul>
+                </div>
+            </div> <div id="review-section">
                 <button id="review-toggle-btn">Review Incorrect Answers</button>
                 <div id="review-content">
                     </div>
             </div>
 
-             <button id="restart-btn">Restart Demo</button>
-        </div>
-    </div>
+             <div class="result-buttons">
+                 <button id="share-score-btn"><i class="fas fa-share-alt"></i> Share Score</button>
+                 <button id="restart-btn"><i class="fas fa-redo"></i> Restart Demo</button>
+             </div>
+        </div> </div>
 
     <script>
         // --- Bible Quiz Data (Last 10 Questions Only) ---
@@ -420,6 +457,7 @@
         const feedbackAreaElement = document.getElementById('feedback-area');
         const submitButton = document.getElementById('submit-btn');
         const resultAreaElement = document.getElementById('result-area');
+        const scoreCardElement = document.getElementById('score-card'); // Element to capture
         const finalScoreElement = document.getElementById('final-score');
         const totalPossibleScoreElement = document.getElementById('total-possible-score');
         const quizContainer = document.getElementById('quiz-container');
@@ -427,6 +465,7 @@
         const progressBarElement = document.getElementById('progress-bar');
         const overallTimerElement = document.getElementById('overall-timer');
         const restartButton = document.getElementById('restart-btn');
+        const shareScoreButton = document.getElementById('share-score-btn'); // Share button
         const correctAnswersCountElement = document.getElementById('correct-answers-count');
         const incorrectAnswersCountElement = document.getElementById('incorrect-answers-count');
         const liveCorrectCountElement = document.getElementById('live-correct-count');
@@ -438,7 +477,8 @@
         const reviewContent = document.getElementById('review-content');
         const achievementsListElement = document.getElementById('achievements-list');
         const liveGiftsElement = document.getElementById('live-gifts');
-        const timeTakenElement = document.getElementById('time-taken'); // Time taken display
+        const timeTakenElement = document.getElementById('time-taken');
+        const finalRatingElement = document.getElementById('final-rating');
 
 
         // --- Quiz State ---
@@ -450,12 +490,13 @@
         let earnedGifts = [];
         let userAnswers = {};
         let incorrectlyAnsweredQuestions = [];
+        let userRating = null;
         let totalPossibleScore = 0;
         let overallTimerInterval;
         let timeLeft = 30 * 60;
         let autoProceedTimeout;
-        let quizStartTime; // To record the start time
-        let quizEndTime; // To record the end time
+        let quizStartTime;
+        let quizEndTime;
 
         // --- Gamification Settings ---
         const streakThresholds = {
@@ -496,17 +537,28 @@
             }
 
             if (synth) {
-                synth.triggerAttackRelease(note, duration, Tone.now());
+                // Check if context is running *before* trying to play
+                if (Tone.context.state === 'running') {
+                    synth.triggerAttackRelease(note, duration, Tone.now());
+                } else {
+                    console.warn("Audio context suspended, trying to resume and play.");
+                    // Try to resume and play immediately after
+                     Tone.start().then(() => {
+                         isAudioContextStarted = true;
+                         synth.triggerAttackRelease(note, duration, Tone.now());
+                     }).catch(e => console.error("Could not resume context to play sound:", e));
+                }
             } else {
                 console.warn("Synth not ready, attempting to define and play again.");
                 defineSynths();
-                if(synth) {
+                if(synth && Tone.context.state === 'running') {
                      synth.triggerAttackRelease(note, duration, Tone.now());
                 } else {
-                    console.error("Synth still not defined after attempting re-initialization.");
+                    console.error("Synth still not defined or context not running after attempting re-initialization.");
                 }
             }
         }
+
 
          document.body.addEventListener('click', async () => {
             if (!isAudioContextStarted && Tone.context.state !== 'running') {
@@ -531,7 +583,7 @@
 
         function startQuizFlow() {
              console.log("Starting quiz flow...");
-             quizStartTime = Date.now(); // Record start time
+             quizStartTime = Date.now();
              calculateTotalPossibleScore();
              startOverallTimer();
              loadQuestion();
@@ -551,7 +603,7 @@
                      feedbackAreaElement.textContent = "Time's up!";
                      feedbackAreaElement.className = 'feedback-incorrect';
                      playSound(incorrectSound, "C3", "8n");
-                     showResults(); // Show results even if time runs out
+                     showResults();
                  }
              }, 1000);
          }
@@ -808,12 +860,14 @@
              optionsAreaElement.appendChild(container);
          }
 
-        function handleRatingAnswer(selectedValue, points) { /* ... (no changes) ... */
+         // Updated to store the rating
+        function handleRatingAnswer(selectedValue, points) {
              optionsAreaElement.querySelectorAll('input[type="radio"]').forEach(rb => {
                  rb.disabled = true;
              });
-            console.log(`User rated: ${selectedValue}`);
-            feedbackAreaElement.textContent = `Rating Submitted: ${selectedValue}`;
+            userRating = selectedValue; // Store the selected rating
+            console.log(`User rated: ${userRating}`);
+            feedbackAreaElement.textContent = `Rating Submitted: ${userRating}`;
             feedbackAreaElement.className = 'feedback-submitted';
             currentStreak = 0;
             updateLiveCountsAndStreak();
@@ -821,9 +875,9 @@
         }
 
 
-        // Updated to calculate and display time taken
+        // Updated to display rating
         function showResults() {
-            quizEndTime = Date.now(); // Record end time
+            quizEndTime = Date.now();
             clearInterval(overallTimerInterval);
             clearTimeout(autoProceedTimeout);
 
@@ -834,12 +888,18 @@
             correctAnswersCountElement.textContent = correctCount;
             incorrectAnswersCountElement.textContent = incorrectCount;
 
-            // Calculate and display time taken
             const durationMs = quizEndTime - quizStartTime;
             const durationSeconds = Math.floor(durationMs / 1000);
             const minutesTaken = Math.floor(durationSeconds / 60);
             const secondsTaken = durationSeconds % 60;
             timeTakenElement.textContent = `${minutesTaken}:${secondsTaken < 10 ? '0' : ''}${secondsTaken}`;
+
+            if (userRating !== null) {
+                finalRatingElement.textContent = `${userRating} / 5`;
+                finalRatingElement.parentElement.style.display = 'block';
+            } else {
+                 finalRatingElement.parentElement.style.display = 'none';
+            }
 
 
             populateAchievements();
@@ -958,10 +1018,11 @@
              earnedGifts = [];
              userAnswers = {};
              incorrectlyAnsweredQuestions = [];
+             userRating = null;
              clearTimeout(autoProceedTimeout);
              clearInterval(overallTimerInterval);
-             quizStartTime = null; // Reset start time
-             quizEndTime = null; // Reset end time
+             quizStartTime = null;
+             quizEndTime = null;
 
              resultAreaElement.style.display = 'none';
              reviewSection.style.display = 'none';
@@ -979,6 +1040,45 @@
 
         }
 
+        // Function to handle sharing the score card as an image
+        async function shareScoreAsImage() {
+            const elementToCapture = scoreCardElement; // Capture the score card div
+            const buttonsToHide = resultAreaElement.querySelectorAll('.result-buttons, #review-section'); // Select elements to hide
+
+            // Temporarily hide buttons and review section for a cleaner screenshot
+            buttonsToHide.forEach(el => el.classList.add('hide-for-screenshot'));
+
+            try {
+                // Use html2canvas to generate the image
+                const canvas = await html2canvas(elementToCapture, {
+                    backgroundColor: '#e7f0fe', // Match result area background
+                    logging: false, // Disable console logging from html2canvas
+                    useCORS: true // If your logo is hosted elsewhere, this might be needed
+                });
+
+                // Convert canvas to data URL (PNG image)
+                const imageDataUrl = canvas.toDataURL('image/png');
+
+                // Create a temporary link to trigger download
+                const downloadLink = document.createElement('a');
+                downloadLink.href = imageDataUrl;
+                downloadLink.download = 'quiz-score.png'; // Filename for the downloaded image
+
+                // Append, click, and remove the link
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                document.body.removeChild(downloadLink);
+
+            } catch (error) {
+                console.error('Error generating score image:', error);
+                alert('Sorry, there was an error generating the score image.'); // Inform user
+            } finally {
+                 // Always unhide the buttons and review section afterwards
+                 buttonsToHide.forEach(el => el.classList.remove('hide-for-screenshot'));
+            }
+        }
+
+
         // --- Event Listeners ---
          startQuizButton.addEventListener('click', async () => {
              if (!isAudioContextStarted && Tone.context.state !== 'running') {
@@ -986,17 +1086,17 @@
                      await Tone.start();
                      isAudioContextStarted = true;
                      console.log("Audio Context Started by Start Button.");
-                     defineSynths(); // Define synths now
+                     defineSynths();
                  } catch (e) {
                      console.error("Error starting Audio Context on start button:", e);
                  }
              } else if (!correctSound){
-                  defineSynths(); // Define if context was already running
+                  defineSynths();
              }
 
              startQuizButton.style.display = 'none';
              quizContentElement.style.display = 'block';
-             startQuizFlow(); // Start quiz logic
+             startQuizFlow();
          });
 
 
@@ -1009,10 +1109,10 @@
 
         restartButton.addEventListener('click', restartQuiz);
         reviewToggleButton.addEventListener('click', toggleReview);
+        shareScoreButton.addEventListener('click', shareScoreAsImage); // Add listener for share button
 
 
         // --- Initial Setup ---
-        // Calculate total score, but don't start quiz yet
         calculateTotalPossibleScore();
 
     </script>
