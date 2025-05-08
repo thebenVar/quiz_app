@@ -48,6 +48,29 @@
             font-weight: 600;
         }
 
+        /* Start Button Styling */
+        #start-quiz-btn {
+             padding: 15px 35px;
+             font-size: 1.2em;
+             background-color: #0d6efd;
+             color: white;
+             border: none;
+             border-radius: 8px;
+             cursor: pointer;
+             transition: background-color 0.2s ease;
+             font-weight: 600;
+             margin-top: 20px; /* Space below logo/title */
+        }
+        #start-quiz-btn:hover {
+             background-color: #0b5ed7;
+        }
+
+        /* Hide quiz content initially */
+        #quiz-content {
+            display: none;
+        }
+
+
         /* Header Elements */
         #quiz-header {
             display: flex;
@@ -293,7 +316,9 @@
         .review-user-answer { color: #dc3545; }
 
         /* Hide elements initially */
-        #result-area, #submit-btn { display: none; }
+        #result-area, #submit-btn, #quiz-content { /* Added #quiz-content */
+             display: none;
+        }
 
     </style>
 </head>
@@ -305,38 +330,41 @@
         <img id="logo"
              src="logo.png" alt="Gethsemane Logo" onerror="this.style.display='none'; console.error('Logo image not found at logo.png')"
              >
-        <h1>Gethsemane Bible Quiz (Demo)</h1>
-        <div id="quiz-header">
-            <div id="progress-bar-container">
-                <div id="progress-bar"></div>
-            </div>
-            <div id="header-info">
-                <span id="progress-text">Question 1 / 10</span>
-                <div id="live-stats">
-                    <span id="live-correct-count">✔️ 0</span>
-                    <span id="live-incorrect-count">❌ 0</span>
-                    <span id="streak-counter">🔥 Streak: 0</span>
-                    <div id="live-gifts"></div>
+        <h1>Gethsemane Bible Quiz(Demo)</h1>
+
+        <button id="start-quiz-btn">Start Quiz</button>
+
+        <div id="quiz-content">
+            <div id="quiz-header">
+                <div id="progress-bar-container">
+                    <div id="progress-bar"></div>
                 </div>
-                <span id="overall-timer">Time Left: 30:00</span>
-            </div>
-        </div>
-
-        <div id="question-area">
-            <p id="question-text">Loading question...</p>
-        </div>
-
-        <div id="options-area">
-            </div>
-
-        <div id="feedback-area">
+                <div id="header-info">
+                    <span id="progress-text">Question 1 / 10</span>
+                    <div id="live-stats">
+                        <span id="live-correct-count">✔️ 0</span>
+                        <span id="live-incorrect-count">❌ 0</span>
+                        <span id="streak-counter">🔥 Streak: 0</span>
+                        <div id="live-gifts"></div>
+                    </div>
+                    <span id="overall-timer">Time Left: 30:00</span>
+                </div>
             </div>
 
-        <div id="navigation">
-            <button id="submit-btn">Submit Answer</button>
-        </div>
+            <div id="question-area">
+                <p id="question-text">Loading question...</p>
+            </div>
 
-        <div id="result-area">
+            <div id="options-area">
+                </div>
+
+            <div id="feedback-area">
+                </div>
+
+            <div id="navigation">
+                <button id="submit-btn">Submit Answer</button>
+            </div>
+        </div> <div id="result-area">
             <h2>Quiz Demo Complete!</h2>
             <p>Your final score is: <span id="final-score">0</span> / <span id="total-possible-score">0</span></p>
             <div id="result-summary">
@@ -378,6 +406,8 @@
 
 
         // --- DOM Elements ---
+        const startQuizButton = document.getElementById('start-quiz-btn'); // Start button
+        const quizContentElement = document.getElementById('quiz-content'); // Div containing quiz elements
         const questionTextElement = document.getElementById('question-text');
         const optionsAreaElement = document.getElementById('options-area');
         const feedbackAreaElement = document.getElementById('feedback-area');
@@ -400,7 +430,7 @@
         const reviewToggleButton = document.getElementById('review-toggle-btn');
         const reviewContent = document.getElementById('review-content');
         const achievementsListElement = document.getElementById('achievements-list');
-        const liveGiftsElement = document.getElementById('live-gifts'); // Live gifts display area
+        const liveGiftsElement = document.getElementById('live-gifts');
 
 
         // --- Quiz State ---
@@ -409,7 +439,7 @@
         let correctCount = 0;
         let incorrectCount = 0;
         let currentStreak = 0;
-        let earnedGifts = []; // Store earned gift ICON CLASSES
+        let earnedGifts = [];
         let userAnswers = {};
         let incorrectlyAnsweredQuestions = [];
         let totalPossibleScore = 0;
@@ -419,40 +449,71 @@
 
         // --- Gamification Settings ---
         const streakThresholds = {
-            3: "fas fa-candy-cane", // Candy icon class
-            5: "fas fa-pencil-alt", // Pencil icon class
-            8: "fas fa-book"        // Book icon class
+            3: "fas fa-candy-cane",
+            5: "fas fa-pencil-alt",
+            8: "fas fa-book"
         };
 
         // --- Sound Effects (Tone.js Synths) ---
-        let correctSound, incorrectSound, completeSound, giftSound; // Added giftSound
-        function initSounds() {
-            if (!correctSound) {
-                 correctSound = new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 0.2 } }).toDestination();
-                 incorrectSound = new Tone.Synth({ oscillator: { type: 'square' }, envelope: { attack: 0.01, decay: 0.2, sustain: 0.05, release: 0.2 } }).toDestination();
-                 completeSound = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.05, decay: 0.2, sustain: 0.3, release: 0.5 } }).toDestination();
-                 // Create a distinct sound for gifts
-                 giftSound = new Tone.Synth({
-                     oscillator: { type: 'triangle' }, // Different oscillator
-                     envelope: { attack: 0.01, decay: 0.05, sustain: 0.1, release: 0.3 }
-                 }).toDestination();
-                 // Play a slightly higher, quicker note for gift
-                 giftSound.volume.value = -6; // Make it slightly quieter if needed
+        let correctSound, incorrectSound, completeSound, giftSound;
+        let isAudioContextStarted = false;
 
-                console.log("Audio Context Started & Sounds Initialized");
+        // Initialize synths - moved definition outside initSounds
+        function defineSynths() {
+            if (!correctSound) {
+                correctSound = new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 0.2 } }).toDestination();
+                incorrectSound = new Tone.Synth({ oscillator: { type: 'square' }, envelope: { attack: 0.01, decay: 0.2, sustain: 0.05, release: 0.2 } }).toDestination();
+                completeSound = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.05, decay: 0.2, sustain: 0.3, release: 0.5 } }).toDestination();
+                giftSound = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.01, decay: 0.05, sustain: 0.1, release: 0.3 } }).toDestination();
+                giftSound.volume.value = -6;
+                console.log("Synths Defined");
             }
         }
-         document.body.addEventListener('click', async () => {
-            if (Tone.context.state !== 'running') {
-                await Tone.start();
+
+        // Function to safely play a sound
+        async function playSound(synth, note, duration) {
+            // Ensure context is running first
+            if (!isAudioContextStarted && Tone.context.state !== 'running') {
+                try {
+                    await Tone.start();
+                    isAudioContextStarted = true;
+                    console.log("Audio Context Started by playSound.");
+                    defineSynths(); // Define synths now that context is running
+                } catch (e) {
+                    console.error("Error starting Audio Context:", e);
+                    return; // Don't proceed if context failed
+                }
+            } else if (!isAudioContextStarted && Tone.context.state === 'running') {
+                isAudioContextStarted = true; // Update flag if already running
+                 defineSynths();
             }
-            initSounds();
-         }, { once: true });
+
+            // Now check if synth is defined (should be if context started)
+            if (synth) {
+                synth.triggerAttackRelease(note, duration, Tone.now());
+            } else {
+                console.warn("Synth not ready, attempting to define and play again.");
+                defineSynths(); // Try defining again
+                if(synth) { // Check again
+                     synth.triggerAttackRelease(note, duration, Tone.now());
+                } else {
+                    console.error("Synth still not defined after attempting re-initialization.");
+                }
+            }
+        }
 
 
         // --- Functions ---
 
-        function startOverallTimer() { /* ... (no changes) ... */
+        function startQuizFlow() {
+             console.log("Starting quiz flow...");
+             calculateTotalPossibleScore();
+             startOverallTimer();
+             loadQuestion();
+        }
+
+
+        function startOverallTimer() { /* ... (calls playSound) ... */
              clearInterval(overallTimerInterval);
              timeLeft = 30 * 60;
              updateTimerDisplay();
@@ -464,7 +525,7 @@
                      clearTimeout(autoProceedTimeout);
                      feedbackAreaElement.textContent = "Time's up!";
                      feedbackAreaElement.className = 'feedback-incorrect';
-                     if (incorrectSound) incorrectSound.triggerAttackRelease("C3", "8n", Tone.now());
+                     playSound(incorrectSound, "C3", "8n"); // Use playSound
                      showResults();
                  }
              }, 1000);
@@ -496,9 +557,8 @@
              progressBarElement.style.width = `${progress}%`;
          }
 
-         // Function to update the live gift display in the header
-         function displayLiveGifts() {
-             liveGiftsElement.innerHTML = ''; // Clear previous icons
+         function displayLiveGifts() { /* ... (no changes) ... */
+             liveGiftsElement.innerHTML = '';
              earnedGifts.forEach(giftClass => {
                  const icon = document.createElement('i');
                  icon.className = giftClass;
@@ -540,7 +600,7 @@
             updateProgressBar();
             progressTextElement.textContent = `Question ${currentQuestionIndex + 1} / ${quizData.length}`;
             updateLiveCountsAndStreak();
-            displayLiveGifts(); // Update live gifts display
+            displayLiveGifts();
 
             const currentQuestion = quizData[currentQuestionIndex];
             questionTextElement.textContent = currentQuestion.question;
@@ -553,12 +613,10 @@
             }
         }
 
-        // Updated to reorder "All/None" options
-        function loadMCQOptions(question) {
+        function loadMCQOptions(question) { /* ... (no changes) ... */
              let regularOptions = [];
-             let specialOptions = []; // To hold "All" or "None"
+             let specialOptions = [];
 
-             // Separate special options
              question.options.forEach(option => {
                  const lowerCaseOption = option.toLowerCase();
                  if (lowerCaseOption.includes("all the above") || lowerCaseOption.includes("none of the above")) {
@@ -568,13 +626,9 @@
                  }
              });
 
-             // Shuffle only the regular options
              const shuffledRegularOptions = [...regularOptions].sort(() => Math.random() - 0.5);
-
-             // Combine shuffled regular options with special options at the end
              const finalOptions = [...shuffledRegularOptions, ...specialOptions];
 
-             // Create buttons from the final ordered list
              finalOptions.forEach(option => {
                 const button = document.createElement('button');
                 button.textContent = option;
@@ -584,7 +638,7 @@
             });
          }
 
-        function handleMCQAnswer(selectedOption, question, buttonElement) { /* ... (no changes) ... */
+        function handleMCQAnswer(selectedOption, question, buttonElement) { /* ... (calls playSound) ... */
             document.querySelectorAll('.mcq-option').forEach(btn => btn.disabled = true);
             buttonElement.classList.add('selected');
 
@@ -594,7 +648,7 @@
                 currentStreak++;
                 feedbackAreaElement.textContent = "Correct!";
                 feedbackAreaElement.className = 'feedback-correct';
-                if (correctSound) correctSound.triggerAttackRelease("C5", "8n", Tone.now());
+                playSound(correctSound, "C5", "8n"); // Use playSound
                 triggerFeedbackFlash(true);
                 checkStreakForGift();
             } else {
@@ -602,8 +656,8 @@
                 currentStreak = 0;
                 feedbackAreaElement.textContent = `Incorrect!`;
                 feedbackAreaElement.className = 'feedback-incorrect';
-                 if (incorrectSound) incorrectSound.triggerAttackRelease("C3", "8n", Tone.now());
-                 triggerFeedbackFlash(false);
+                playSound(incorrectSound, "C3", "8n"); // Use playSound
+                triggerFeedbackFlash(false);
                 incorrectlyAnsweredQuestions.push({
                     questionText: question.question,
                     userAnswer: selectedOption,
@@ -614,15 +668,14 @@
             scheduleAutoProceed();
         }
 
-         // Updated to play gift sound and update live display
-         function checkStreakForGift() {
+         function checkStreakForGift() { /* ... (calls playSound) ... */
              const streakLevel = currentStreak;
              if (streakThresholds[streakLevel] && !earnedGifts.includes(streakThresholds[streakLevel])) {
                  const giftClass = streakThresholds[streakLevel];
                  earnedGifts.push(giftClass);
                  console.log(`Gift earned: ${giftClass} for streak ${streakLevel}`);
-                 displayLiveGifts(); // Update the live gift display immediately
-                 if (giftSound) giftSound.triggerAttackRelease("E5", "16n", Tone.now()); // Play gift sound
+                 displayLiveGifts();
+                 playSound(giftSound, "E5", "16n"); // Use playSound for gift
              }
          }
 
@@ -660,7 +713,7 @@
              optionsAreaElement.appendChild(container);
          }
 
-         function handleMatchingSubmit() { /* ... (no changes) ... */
+         function handleMatchingSubmit() { /* ... (calls playSound) ... */
              submitButton.disabled = true;
              const currentQuestion = quizData[currentQuestionIndex];
              let correctMatches = 0;
@@ -687,7 +740,7 @@
                  currentStreak++;
                  feedbackAreaElement.textContent = `Answer Submitted! (${correctMatches}/${currentQuestion.pairs.length} correct)`;
                  feedbackAreaElement.className = 'feedback-correct';
-                 if (correctSound) correctSound.triggerAttackRelease("C5", "8n", Tone.now());
+                 playSound(correctSound, "C5", "8n"); // Use playSound
                  triggerFeedbackFlash(true);
                  checkStreakForGift();
              } else {
@@ -695,7 +748,7 @@
                  currentStreak = 0;
                  feedbackAreaElement.textContent = `Answer Submitted! (${correctMatches}/${currentQuestion.pairs.length} correct)`;
                  feedbackAreaElement.className = 'feedback-submitted';
-                 if (incorrectSound) incorrectSound.triggerAttackRelease("C3", "8n", Tone.now());
+                 playSound(incorrectSound, "C3", "8n"); // Use playSound
                  triggerFeedbackFlash(false);
                  incorrectlyAnsweredQuestions.push({
                      questionText: currentQuestion.question,
@@ -743,29 +796,26 @@
         }
 
 
-        function showResults() { /* ... (no changes) ... */
+        function showResults() { /* ... (calls playSound) ... */
             clearInterval(overallTimerInterval);
             clearTimeout(autoProceedTimeout);
 
-            quizContainer.querySelector('#quiz-header').style.display = 'none';
-            questionTextElement.style.display = 'none';
-            optionsAreaElement.style.display = 'none';
-            feedbackAreaElement.style.display = 'none';
-            submitButton.style.display = 'none';
+            // Hide quiz content area
+             quizContentElement.style.display = 'none';
 
             finalScoreElement.textContent = score;
             totalPossibleScoreElement.textContent = totalPossibleScore;
             correctAnswersCountElement.textContent = correctCount;
             incorrectAnswersCountElement.textContent = incorrectCount;
 
-            populateAchievements(); // This now handles the final gift display
-            achievementsListElement.parentElement.style.display = 'block'; // Always show achievements section
+            populateAchievements();
+            achievementsListElement.parentElement.style.display = 'block';
 
             populateReviewSection();
             reviewSection.style.display = incorrectlyAnsweredQuestions.length > 0 ? 'block' : 'none';
 
             resultAreaElement.style.display = 'block';
-            if (completeSound) completeSound.triggerAttackRelease("G4", "4n", Tone.now());
+            playSound(completeSound, "G4", "4n"); // Use playSound
         }
 
         function populateAchievements() { /* ... (no changes) ... */
@@ -865,13 +915,13 @@
          }
 
 
-        function restartQuiz() { /* ... (live gifts cleared) ... */
+        function restartQuiz() { /* ... (resets quiz-content display) ... */
              currentQuestionIndex = 0;
              score = 0;
              correctCount = 0;
              incorrectCount = 0;
              currentStreak = 0;
-             earnedGifts = []; // Reset gifts
+             earnedGifts = [];
              userAnswers = {};
              incorrectlyAnsweredQuestions = [];
              clearTimeout(autoProceedTimeout);
@@ -882,23 +932,45 @@
              reviewContent.style.display = 'none';
              reviewToggleButton.textContent = 'Review Incorrect Answers';
              achievementsListElement.parentElement.style.display = 'none';
-             liveGiftsElement.innerHTML = ''; // Clear live gifts display
+             liveGiftsElement.innerHTML = '';
 
-             quizContainer.querySelector('#quiz-header').style.display = 'flex';
-             questionTextElement.style.display = 'block';
-             optionsAreaElement.style.display = 'flex';
-             feedbackAreaElement.textContent = '';
-             feedbackAreaElement.className = '';
-             submitButton.style.display = 'none';
-             submitButton.disabled = false;
+             // Show start button, hide quiz content
+             startQuizButton.style.display = 'inline-block';
+             quizContentElement.style.display = 'none';
+
+             // Reset progress bar visually
+             progressBarElement.style.width = `0%`;
+
+             // Reset counts display
              updateLiveCountsAndStreak();
 
-             calculateTotalPossibleScore();
-             startOverallTimer();
-             loadQuestion();
+             // Note: Timer and first question load are now handled by start button listener
         }
 
         // --- Event Listeners ---
+         startQuizButton.addEventListener('click', async () => {
+             // Try starting audio context
+             if (!isAudioContextStarted && Tone.context.state !== 'running') {
+                 try {
+                     await Tone.start();
+                     isAudioContextStarted = true;
+                     console.log("Audio Context Started by Start Button.");
+                 } catch (e) {
+                     console.error("Error starting Audio Context on start button:", e);
+                     // Continue quiz even if audio fails
+                 }
+             }
+             defineSynths(); // Ensure synths are defined
+
+             // Hide start button, show quiz content
+             startQuizButton.style.display = 'none';
+             quizContentElement.style.display = 'block';
+
+             // Start the quiz flow
+             startQuizFlow();
+         });
+
+
          submitButton.addEventListener('click', () => {
             const currentQuestion = quizData[currentQuestionIndex];
             if (currentQuestion.type === "Matching") {
@@ -910,10 +982,10 @@
         reviewToggleButton.addEventListener('click', toggleReview);
 
 
-        // --- Initial Load ---
+        // --- Initial Setup (No quiz start here) ---
+        // Calculate total score on page load
         calculateTotalPossibleScore();
-        startOverallTimer();
-        loadQuestion();
+        // Quiz does not start until button is clicked
 
     </script>
 
