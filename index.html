@@ -255,10 +255,16 @@
         #result-area { text-align: center; padding: 30px; border: 1px solid #bcd0f7; border-radius: 12px; background-color: #e7f0fe; margin-top: 30px; }
         #result-area h2 { margin-bottom: 15px; color: #0a58ca; font-size: 1.6em; }
         #result-area p { font-size: 1.25em; color: #333; margin-bottom: 10px; }
-        #result-summary { margin-bottom: 20px; }
+        #result-summary { margin-bottom: 15px; /* Reduced margin */ }
         #result-summary span { display: inline-block; margin: 0 15px; font-weight: 500; }
         .correct-count { color: #198754; }
         .incorrect-count { color: #dc3545; }
+        /* Style for Time Taken */
+        #time-taken-summary {
+            font-size: 1.1em;
+            color: #555;
+            margin-bottom: 20px;
+        }
 
         /* Achievements / Gifts Section */
         #achievements-section {
@@ -330,9 +336,9 @@
         <img id="logo"
              src="logo.png" alt="Gethsemane Logo" onerror="this.style.display='none'; console.error('Logo image not found at logo.png')"
              >
-        <h1>Gethsemane Bible Quiz(Demo)</h1>
+        <h1>Bible Quiz Demo (Gamified)</h1>
 
-        <button id="start-quiz-btn">Start Quiz</button>
+        <button id="start-quiz-btn">Start Quiz Demo</button>
 
         <div id="quiz-content">
             <div id="quiz-header">
@@ -371,6 +377,7 @@
                 <span class="correct-count">Correct: <span id="correct-answers-count">0</span></span>
                 <span class="incorrect-count">Incorrect: <span id="incorrect-answers-count">0</span></span>
             </div>
+            <p id="time-taken-summary">Time Taken: <span id="time-taken">--:--</span></p>
 
             <div id="achievements-section">
                 <h3>Achievements / Gifts Earned:</h3>
@@ -406,8 +413,8 @@
 
 
         // --- DOM Elements ---
-        const startQuizButton = document.getElementById('start-quiz-btn'); // Start button
-        const quizContentElement = document.getElementById('quiz-content'); // Div containing quiz elements
+        const startQuizButton = document.getElementById('start-quiz-btn');
+        const quizContentElement = document.getElementById('quiz-content');
         const questionTextElement = document.getElementById('question-text');
         const optionsAreaElement = document.getElementById('options-area');
         const feedbackAreaElement = document.getElementById('feedback-area');
@@ -431,6 +438,7 @@
         const reviewContent = document.getElementById('review-content');
         const achievementsListElement = document.getElementById('achievements-list');
         const liveGiftsElement = document.getElementById('live-gifts');
+        const timeTakenElement = document.getElementById('time-taken'); // Time taken display
 
 
         // --- Quiz State ---
@@ -446,6 +454,8 @@
         let overallTimerInterval;
         let timeLeft = 30 * 60;
         let autoProceedTimeout;
+        let quizStartTime; // To record the start time
+        let quizEndTime; // To record the end time
 
         // --- Gamification Settings ---
         const streakThresholds = {
@@ -458,7 +468,6 @@
         let correctSound, incorrectSound, completeSound, giftSound;
         let isAudioContextStarted = false;
 
-        // Initialize synths - moved definition outside initSounds
         function defineSynths() {
             if (!correctSound) {
                 correctSound = new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 0.2 } }).toDestination();
@@ -470,31 +479,28 @@
             }
         }
 
-        // Function to safely play a sound
         async function playSound(synth, note, duration) {
-            // Ensure context is running first
             if (!isAudioContextStarted && Tone.context.state !== 'running') {
                 try {
                     await Tone.start();
                     isAudioContextStarted = true;
                     console.log("Audio Context Started by playSound.");
-                    defineSynths(); // Define synths now that context is running
+                    defineSynths();
                 } catch (e) {
                     console.error("Error starting Audio Context:", e);
-                    return; // Don't proceed if context failed
+                    return;
                 }
             } else if (!isAudioContextStarted && Tone.context.state === 'running') {
-                isAudioContextStarted = true; // Update flag if already running
+                isAudioContextStarted = true;
                  defineSynths();
             }
 
-            // Now check if synth is defined (should be if context started)
             if (synth) {
                 synth.triggerAttackRelease(note, duration, Tone.now());
             } else {
                 console.warn("Synth not ready, attempting to define and play again.");
-                defineSynths(); // Try defining again
-                if(synth) { // Check again
+                defineSynths();
+                if(synth) {
                      synth.triggerAttackRelease(note, duration, Tone.now());
                 } else {
                     console.error("Synth still not defined after attempting re-initialization.");
@@ -502,18 +508,37 @@
             }
         }
 
+         document.body.addEventListener('click', async () => {
+            if (!isAudioContextStarted && Tone.context.state !== 'running') {
+                try {
+                    await Tone.start();
+                    isAudioContextStarted = true;
+                    console.log("Audio Context Started by user interaction.");
+                    defineSynths();
+                } catch (e) {
+                    console.error("Error starting Audio Context:", e);
+                }
+            } else if (!isAudioContextStarted && Tone.context.state === 'running') {
+                 isAudioContextStarted = true;
+                 defineSynths();
+            } else if (isAudioContextStarted && !correctSound) {
+                 defineSynths();
+            }
+         }, { once: true });
+
 
         // --- Functions ---
 
         function startQuizFlow() {
              console.log("Starting quiz flow...");
+             quizStartTime = Date.now(); // Record start time
              calculateTotalPossibleScore();
              startOverallTimer();
              loadQuestion();
         }
 
 
-        function startOverallTimer() { /* ... (calls playSound) ... */
+        function startOverallTimer() {
              clearInterval(overallTimerInterval);
              timeLeft = 30 * 60;
              updateTimerDisplay();
@@ -525,8 +550,8 @@
                      clearTimeout(autoProceedTimeout);
                      feedbackAreaElement.textContent = "Time's up!";
                      feedbackAreaElement.className = 'feedback-incorrect';
-                     playSound(incorrectSound, "C3", "8n"); // Use playSound
-                     showResults();
+                     playSound(incorrectSound, "C3", "8n");
+                     showResults(); // Show results even if time runs out
                  }
              }, 1000);
          }
@@ -638,7 +663,7 @@
             });
          }
 
-        function handleMCQAnswer(selectedOption, question, buttonElement) { /* ... (calls playSound) ... */
+        function handleMCQAnswer(selectedOption, question, buttonElement) { /* ... (no changes) ... */
             document.querySelectorAll('.mcq-option').forEach(btn => btn.disabled = true);
             buttonElement.classList.add('selected');
 
@@ -648,7 +673,7 @@
                 currentStreak++;
                 feedbackAreaElement.textContent = "Correct!";
                 feedbackAreaElement.className = 'feedback-correct';
-                playSound(correctSound, "C5", "8n"); // Use playSound
+                playSound(correctSound, "C5", "8n");
                 triggerFeedbackFlash(true);
                 checkStreakForGift();
             } else {
@@ -656,7 +681,7 @@
                 currentStreak = 0;
                 feedbackAreaElement.textContent = `Incorrect!`;
                 feedbackAreaElement.className = 'feedback-incorrect';
-                playSound(incorrectSound, "C3", "8n"); // Use playSound
+                playSound(incorrectSound, "C3", "8n");
                 triggerFeedbackFlash(false);
                 incorrectlyAnsweredQuestions.push({
                     questionText: question.question,
@@ -668,14 +693,14 @@
             scheduleAutoProceed();
         }
 
-         function checkStreakForGift() { /* ... (calls playSound) ... */
+         function checkStreakForGift() { /* ... (no changes) ... */
              const streakLevel = currentStreak;
              if (streakThresholds[streakLevel] && !earnedGifts.includes(streakThresholds[streakLevel])) {
                  const giftClass = streakThresholds[streakLevel];
                  earnedGifts.push(giftClass);
                  console.log(`Gift earned: ${giftClass} for streak ${streakLevel}`);
                  displayLiveGifts();
-                 playSound(giftSound, "E5", "16n"); // Use playSound for gift
+                 playSound(giftSound, "E5", "16n");
              }
          }
 
@@ -713,7 +738,7 @@
              optionsAreaElement.appendChild(container);
          }
 
-         function handleMatchingSubmit() { /* ... (calls playSound) ... */
+         function handleMatchingSubmit() { /* ... (no changes) ... */
              submitButton.disabled = true;
              const currentQuestion = quizData[currentQuestionIndex];
              let correctMatches = 0;
@@ -740,7 +765,7 @@
                  currentStreak++;
                  feedbackAreaElement.textContent = `Answer Submitted! (${correctMatches}/${currentQuestion.pairs.length} correct)`;
                  feedbackAreaElement.className = 'feedback-correct';
-                 playSound(correctSound, "C5", "8n"); // Use playSound
+                 playSound(correctSound, "C5", "8n");
                  triggerFeedbackFlash(true);
                  checkStreakForGift();
              } else {
@@ -748,7 +773,7 @@
                  currentStreak = 0;
                  feedbackAreaElement.textContent = `Answer Submitted! (${correctMatches}/${currentQuestion.pairs.length} correct)`;
                  feedbackAreaElement.className = 'feedback-submitted';
-                 playSound(incorrectSound, "C3", "8n"); // Use playSound
+                 playSound(incorrectSound, "C3", "8n");
                  triggerFeedbackFlash(false);
                  incorrectlyAnsweredQuestions.push({
                      questionText: currentQuestion.question,
@@ -796,17 +821,26 @@
         }
 
 
-        function showResults() { /* ... (calls playSound) ... */
+        // Updated to calculate and display time taken
+        function showResults() {
+            quizEndTime = Date.now(); // Record end time
             clearInterval(overallTimerInterval);
             clearTimeout(autoProceedTimeout);
 
-            // Hide quiz content area
-             quizContentElement.style.display = 'none';
+            quizContentElement.style.display = 'none';
 
             finalScoreElement.textContent = score;
             totalPossibleScoreElement.textContent = totalPossibleScore;
             correctAnswersCountElement.textContent = correctCount;
             incorrectAnswersCountElement.textContent = incorrectCount;
+
+            // Calculate and display time taken
+            const durationMs = quizEndTime - quizStartTime;
+            const durationSeconds = Math.floor(durationMs / 1000);
+            const minutesTaken = Math.floor(durationSeconds / 60);
+            const secondsTaken = durationSeconds % 60;
+            timeTakenElement.textContent = `${minutesTaken}:${secondsTaken < 10 ? '0' : ''}${secondsTaken}`;
+
 
             populateAchievements();
             achievementsListElement.parentElement.style.display = 'block';
@@ -815,7 +849,7 @@
             reviewSection.style.display = incorrectlyAnsweredQuestions.length > 0 ? 'block' : 'none';
 
             resultAreaElement.style.display = 'block';
-            playSound(completeSound, "G4", "4n"); // Use playSound
+            playSound(completeSound, "G4", "4n");
         }
 
         function populateAchievements() { /* ... (no changes) ... */
@@ -915,7 +949,7 @@
          }
 
 
-        function restartQuiz() { /* ... (resets quiz-content display) ... */
+        function restartQuiz() { /* ... (no changes) ... */
              currentQuestionIndex = 0;
              score = 0;
              correctCount = 0;
@@ -926,6 +960,8 @@
              incorrectlyAnsweredQuestions = [];
              clearTimeout(autoProceedTimeout);
              clearInterval(overallTimerInterval);
+             quizStartTime = null; // Reset start time
+             quizEndTime = null; // Reset end time
 
              resultAreaElement.style.display = 'none';
              reviewSection.style.display = 'none';
@@ -934,40 +970,33 @@
              achievementsListElement.parentElement.style.display = 'none';
              liveGiftsElement.innerHTML = '';
 
-             // Show start button, hide quiz content
              startQuizButton.style.display = 'inline-block';
              quizContentElement.style.display = 'none';
 
-             // Reset progress bar visually
              progressBarElement.style.width = `0%`;
 
-             // Reset counts display
              updateLiveCountsAndStreak();
 
-             // Note: Timer and first question load are now handled by start button listener
         }
 
         // --- Event Listeners ---
          startQuizButton.addEventListener('click', async () => {
-             // Try starting audio context
              if (!isAudioContextStarted && Tone.context.state !== 'running') {
                  try {
                      await Tone.start();
                      isAudioContextStarted = true;
                      console.log("Audio Context Started by Start Button.");
+                     defineSynths(); // Define synths now
                  } catch (e) {
                      console.error("Error starting Audio Context on start button:", e);
-                     // Continue quiz even if audio fails
                  }
+             } else if (!correctSound){
+                  defineSynths(); // Define if context was already running
              }
-             defineSynths(); // Ensure synths are defined
 
-             // Hide start button, show quiz content
              startQuizButton.style.display = 'none';
              quizContentElement.style.display = 'block';
-
-             // Start the quiz flow
-             startQuizFlow();
+             startQuizFlow(); // Start quiz logic
          });
 
 
@@ -982,10 +1011,9 @@
         reviewToggleButton.addEventListener('click', toggleReview);
 
 
-        // --- Initial Setup (No quiz start here) ---
-        // Calculate total score on page load
+        // --- Initial Setup ---
+        // Calculate total score, but don't start quiz yet
         calculateTotalPossibleScore();
-        // Quiz does not start until button is clicked
 
     </script>
 
